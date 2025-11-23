@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>たしざん</title>
+    <style>
+        body{font-family:'Arial',sans-serif;text-align:center;padding:20px;background-color:#f4f4f9}
+        .container{max-width:650px;margin:0 auto;background-color:#fff;padding:30px;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,.1)}
+        h1{color:#333;margin-bottom:30px}
+        #drill-questions{margin-bottom:20px}
+        .drill-group{position:relative;margin-bottom:30px}
+        .drill-item{display:flex;justify-content:center;align-items:center;font-size:1.5em}
+        /* 問題式全体の色設定 */
+        .drill-item span{margin:0 10px; color:#333; transition: color 0.1s;} 
+        .drill-item input[type="text"]{width:80px;padding:8px;font-size:1em;border:2px solid #ccc;border-radius:5px;text-align:center;caret-color:transparent;ime-mode:inactive}
+        .drill-item input:focus{border:2px solid #007bff}
+        .keypad{margin-top:10px;padding:5px;background-color:#e0e0e0;border-radius:6px;display:none;grid-template-columns:repeat(6,1fr);gap:5px;max-width:350px;margin:10px auto 0}
+        .key{padding:10px 0;font-size:1.2em;background-color:#fff;border:1px solid #ccc;border-radius:4px;cursor:pointer;user-select:none;transition:background-color .1s}
+        .key:active{background-color:#ddd}
+        .key.delete{background-color:#ff9999;grid-column:span 2}
+        .key.delete:active{background-color:#ff7777}
+        /* ボタンのスタイルは結果エリア内で中央揃えされる */
+        #start-button,#check-button,#reset-button{padding:12px 25px;font-size:1.2em;cursor:pointer;border:none;border-radius:5px;transition:background-color .3s; margin:10px auto;}
+        #start-button{background-color:#28a745;color:white}
+        /* check-button のスタイル修正: 単独で中央に配置するため、blockで中央揃え */
+        #check-button{
+            background-color:#007bff;
+            color:white;
+            display:none;
+            margin-top: 20px; /* 問題との間隔を空ける */
+        }
+        #reset-button{background-color:#dc3545;color:white;display:none; display: block; /* 結果の下で独立して中央に配置するためブロック要素にする */ }
+        #timer{font-size:1.2em;margin-bottom:20px;color:#555;font-weight:700}
+        /* 結果エリアのパディングを増やし、ボタンがエリア内に収まるように調整 */
+        #results{margin-top:30px;padding:15px;border:2px dashed #007bff;border-radius:8px;background-color:#e9f5ff;display:none; padding-bottom: 25px; }
+        .correct{border-color:#28a745!important;background-color:#e0ffe0}
+        .incorrect{border-color:#dc3545!important;background-color:#ffe0e0}
+        .result-answer{color:#dc3545;font-weight:700;margin-left:10px}
+        .delete-best-time-button-style { 
+            background-color: #ffc107;
+            color: #333;
+            padding: 8px 15px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .best-time-list-style {
+            list-style-type: none;
+            padding-left: 0;
+            text-align: center;
+            max-width: 250px; 
+            margin: 0 auto;
+        }
+        .best-time-list-style li {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .rank-text {
+            display: inline-block;
+            width: 3.5em; 
+            text-align: right;
+            margin-right: 5px; 
+            font-weight: normal;
+        }
+        .rank-time {
+            display: inline-block;
+            text-align: left;
+        }
+        .new-record-highlight {
+            font-weight: bold;
+            color: #dc3545;
+        }
+        #button-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px; 
+        }
+        #initial-best-time-display {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        #result-best-time-display {
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>たしざん (10問)</h1>
+        
+        <div id="timer">
+            <span id="time-display">00:00.00</span>
+        </div>
+        
+        <div id="initial-best-time-display">
+            <div id="best-time-results-initial">
+                <p style="font-weight:bold; margin-bottom:5px;">ベスト3</p>
+                <ul id="best-time-list-initial" class="best-time-list-style"></ul>
+            </div>
+        </div>
+
+        <div id="button-controls">
+            <button id="start-button">スタート</button>
+        </div>
+
+        <div id="drill-questions" style="display:none;">
+        </div>
+        
+        <button id="check-button" style="display: none;">おしまい</button>
+
+        <div id="results">
+            <h2>🎉 けっかはっぴょう 🎉</h2>
+            
+            <div id="result-best-time-display">
+                <p style="font-weight:bold; margin-bottom:5px;">ベスト3</p>
+                <ul id="best-time-list-result" class="best-time-list-style"></ul>
+                <button id="delete-best-time-button-result" class="delete-best-time-button-style">1いをけす</button>
+            </div>
+            
+            <hr style="margin: 10px auto; width: 80%; border: 0; border-top: 1px dashed #ccc;">
+            <p>かかったじかん: <span id="final-time"></span></p>
+            <p>せいかい: <span id="correct-count"></span> / 10</p> 
+            <p>せいとうりつ: <span id="accuracy"></span></p>
+
+            <button id="reset-button">もう一度</button>
+
+        </div>
+        
+    </div>
+
+    <script>
+        let questions=[];let startTime;let timerInterval;let isDrillStarted=false;let activeInput=null;let allInputs;
+        const drillQuestionsDiv=document.getElementById('drill-questions');
+        const startButton=document.getElementById('start-button');
+        const checkButton=document.getElementById('check-button');
+        const resetButton=document.getElementById('reset-button');
+        const resultsDiv=document.getElementById('results');
+        const timeDisplay=document.getElementById('time-display');
+        
+        const initialBestTimeDisplay=document.getElementById('initial-best-time-display');
+        const bestTimeListInitial=document.getElementById('best-time-list-initial'); 
+        
+        const resultBestTimeDisplay=document.getElementById('result-best-time-display');
+        const bestTimeListResult=document.getElementById('best-time-list-result'); 
+        const deleteBestTimeButtonResult=document.getElementById('delete-best-time-button-result'); 
+        
+        const BEST_TIME_KEY='bestTimesAdditionDrill'; 
+        let newRecordIndex = -1; 
+
+        function toHalfWidth(str){return str.replace(/[０-９]/g,function(s){return String.fromCharCode(s.charCodeAt(0)-0xFEE0)})}
+        function getRandomInt(min,max){return Math.floor(Math.random()*(max-min+1))+min}
+
+        function formatTimeMsForDisplay(ms){ 
+            const m=Math.floor(ms/60000);
+            const s=Math.floor((ms%60000)/1000);
+            const ms10=Math.floor((ms%1000)/10);
+            return `${m}ふん${s}びょう${ms10}`;
+        }
+        
+        function loadBestTimes() {
+            const json = localStorage.getItem(BEST_TIME_KEY);
+            try {
+                const times = JSON.parse(json) || [];
+                return Array.isArray(times) ? times.filter(t => typeof t === 'number' && t > 0).sort((a,b)=>a-b) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function updateBestTimeDisplay(bestTimes, targetListId, targetDeleteButtonId) {
+            const targetList = document.getElementById(targetListId);
+            const targetDeleteButton = targetDeleteButtonId ? document.getElementById(targetDeleteButtonId) : null;
+            
+            if (!targetList) return;
+
+            targetList.innerHTML = ''; 
+            
+            if (bestTimes.length === 0) {
+                targetList.innerHTML = '<li>まだ記録がありません</li>';
+                if(targetDeleteButton) targetDeleteButton.style.display = 'none';
+                return;
+            }
+
+            bestTimes.forEach((timeMs, index) => {
+                const rank = index + 1;
+                const rankText = `${rank}い `; 
+                const timeStr = formatTimeMsForDisplay(timeMs);
+                const listItem = document.createElement('li');
+                
+                const rankSpan = document.createElement('span');
+                rankSpan.className = 'rank-text';
+                rankSpan.textContent = rankText;
+                
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'rank-time';
+                timeSpan.textContent = timeStr;
+
+                if (newRecordIndex !== -1 && rank === newRecordIndex) { 
+                     rankSpan.classList.add('new-record-highlight');
+                     timeSpan.classList.add('new-record-highlight');
+                } else {
+                     rankSpan.classList.remove('new-record-highlight');
+                     timeSpan.classList.remove('new-record-highlight');
+                }
+                
+                listItem.appendChild(rankSpan);
+                listItem.appendChild(timeSpan);
+                targetList.appendChild(listItem);
+            });
+            
+            if(targetDeleteButton) targetDeleteButton.style.display = 'inline-block';
+        }
+        
+        function updateAllBestTimeDisplays(bestTimes) {
+             updateBestTimeDisplay(bestTimes, 'best-time-list-initial', null); 
+             updateBestTimeDisplay(bestTimes, 'best-time-list-result', 'delete-best-time-button-result');
+        }
+
+        function deleteBestTime(deleteButtonId) {
+            if (!confirm('本当に1位の記録を削除してもよろしいですか？')) {
+                return;
+            }
+            
+            const currentBestTimes = loadBestTimes();
+            
+            if (currentBestTimes.length > 0) {
+                currentBestTimes.shift(); 
+                localStorage.setItem(BEST_TIME_KEY, JSON.stringify(currentBestTimes));
+            }
+            
+            newRecordIndex = -1; 
+            updateAllBestTimeDisplays(currentBestTimes);
+        }
+
+        deleteBestTimeButtonResult.addEventListener('click', () => deleteBestTime('delete-best-time-button-result'));
+        
+        function generateRandomQuestions(){
+            const numQuestions=10;const newQuestions=[];const generatedSet=new Set();
+            while(newQuestions.length<numQuestions){
+                // 1. 答え (answer) を 10 から 18 の範囲で選ぶ (10-18)
+                const answer = getRandomInt(10, 18);
+                
+                // 2. 問題の最初の数 (q1) を 1 から 9 の範囲で選ぶ (1-9)
+                const q1 = getRandomInt(1, 9);
+                
+                // 3. 問題の2番目の数 (q2) を計算: q2 = answer - q1
+                const q2 = answer - q1;
+
+                // q2が1から9の範囲に収まっているかチェック
+                if (q2 < 1 || q2 > 9) {
+                    continue; // 範囲外なら再生成
+                }
+
+                // 問題の重複チェックのためにキーを作成 (q1+q2)
+                const problemKey=`${q1}+${q2}`;
+                
+                if(!generatedSet.has(problemKey)){
+                    generatedSet.add(problemKey);
+                    // answer は q1 + q2 になる
+                    newQuestions.push({q1:q1,q2:q2,answer:answer});
+                }
+            }
+            return newQuestions;
+        }
+
+        function resetQuestionColors() {
+            document.querySelectorAll('.drill-item span').forEach(span => {
+                span.style.color = '#333';
+            });
+        }
+        
+        function highlightActiveQuestion() {
+            if (!activeInput || !isDrillStarted) return;
+
+            resetQuestionColors();
+            
+            const index = activeInput.dataset.index;
+            const currentGroup = document.getElementById(`group-${index}`);
+            currentGroup.querySelectorAll('span').forEach(span => {
+                span.style.color = '#dc3545';
+            });
+        }
+
+        function generateQuestions(){
+            questions=generateRandomQuestions();
+            // 問題の表示形式は「q1 + q2 = [解答欄]」
+            drillQuestionsDiv.innerHTML=questions.map((q,index)=>`
+                <div class="drill-group" id="group-${index}">
+                    <div class="drill-item">
+                        <span>(${index+1})</span> <span>${q.q1}</span> <span>+</span> <span>${q.q2}</span> <span>=</span>
+                        <input type="text" id="q${index}" maxlength="2" disabled data-index="${index}" inputmode="numeric">
+                        <span id="r${index}" class="result-answer" style="display:none;"></span>
+                    </div>
+                    <div class="keypad" id="keypad-${index}">
+                        <div class="key" data-key="1">1</div><div class="key" data-key="2">2</div><div class="key" data-key="3">3</div>
+                        <div class="key" data-key="4">4</div><div class="key" data-key="5">5</div><div class="key" data-key="6">6</div>
+                        <div class="key" data-key="7">7</div><div class="key" data-key="8">8</div><div class="key" data-key="9">9</div>
+                        <div class="key" data-key="0">0</div><div class="key delete" data-key="del">さくじょ</div>
+                    </div>
+                </div>
+            `).join('');
+
+            allInputs=drillQuestionsDiv.querySelectorAll('input');
+            
+            allInputs.forEach(input=>{
+                const showKeypad=e=>{
+                    if(!isDrillStarted)return;
+                    
+                    if(e.type==='touchstart'){
+                        e.preventDefault();
+                    } else if (e.type === 'focus' && e.relatedTarget && e.relatedTarget.closest('.keypad')) {
+                        return;
+                    }
+                    
+                    document.querySelectorAll('.keypad').forEach(kp=>kp.style.display='none');
+                    const index=input.dataset.index;
+                    document.getElementById(`keypad-${index}`).style.display='grid';
+                    activeInput=input;
+                    
+                    highlightActiveQuestion();
+                    
+                    if(e.type==='touchstart'){input.focus()}
+                    // 修正点: input.select() を削除
+                };
+                
+                input.addEventListener('focus',showKeypad);
+                input.addEventListener('touchstart',showKeypad);
+                
+                // 物理/ソフトウェアキーボードからの入力はDOMに任せる
+                input.addEventListener('keydown',e=>{
+                    if(isDrillStarted){
+                        // Enter キーが押されたら次の入力へ
+                        if(e.key==='Enter'){
+                            e.preventDefault();moveToNextInput(input);
+                        } 
+                    }
+                });
+                
+                // 2桁入力完了時の自動フォーカス移動処理を input イベントで実行
+                input.addEventListener('input', function() {
+                    if(!isDrillStarted)return;
+                    
+                    // 全角数字を半角に変換
+                    this.value = toHalfWidth(this.value);
+                    
+                    // 解答は最大2桁 (18まで) なので、2桁入力で次に進む
+                    if (this.value.length === 2) { 
+                        moveToNextInput(this);
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.keypad').forEach(keypad=>{
+                keypad.addEventListener('click',handleKeypadInput);
+                keypad.addEventListener('click', (e) => {
+                    if (isDrillStarted && activeInput) {
+                        // キーパッドでの入力後、2桁になっていれば自動で次に移動
+                        if (activeInput.value.length === 2 && e.target.dataset.key !== 'del') { 
+                            moveToNextInput(activeInput);
+                        } else {
+                            activeInput.focus(); 
+                            highlightActiveQuestion(); 
+                        }
+                    }
+                });
+            });
+
+            const initialBestTimes=loadBestTimes();
+            newRecordIndex = -1;
+            updateAllBestTimeDisplays(initialBestTimes); 
+        }
+
+        function moveToNextInput(currentInput){
+            const currentIndex=parseInt(currentInput.dataset.index);
+            const nextIndex=currentIndex+1;
+            if(nextIndex<allInputs.length){allInputs[nextIndex].focus()}
+            else if(isDrillStarted){
+                // 最後の問題に達したら、checkButtonにフォーカスを移動
+                checkButton.focus();
+                // 念のため、キーパッドを非表示にする
+                document.querySelectorAll('.keypad').forEach(kp=>kp.style.display='none');
+                resetQuestionColors();
+            }
+        }
+
+        function handleKeypadInput(e){
+            // 仮想キーパッドからの入力のみを処理する (e.type === 'click')
+            if(e.type!=='click'||!e.target.classList.contains('key')||!isDrillStarted||!activeInput)return;
+            
+            const key=e.target.dataset.key;
+            const isNumeric=(key>='0'&&key<='9');
+            e.preventDefault(); 
+            
+            let currentValue=activeInput.value;
+            
+            // 削除キーの処理
+            if(key==='del'){
+                // 修正点: 全選択クリア処理を削除
+                activeInput.value=currentValue.slice(0,-1);
+            } 
+            // 数字キーの処理
+            else if(isNumeric){
+                // 修正点: 全選択クリア処理を削除
+                
+                // 最大2桁まで追加入力
+                if(currentValue.length<2){ 
+                    activeInput.value+=key;
+                }
+            }
+            
+            const inputEvent = new Event('input', { bubbles: true });
+            activeInput.dispatchEvent(inputEvent);
+        }
+        
+        function updateTimer(){
+            const elapsedTime=Date.now()-startTime;
+            const minutes=Math.floor(elapsedTime/60000);
+            const seconds=Math.floor(elapsedTime%60000/1000);
+            const milliseconds=Math.floor(elapsedTime%1000/10);
+            timeDisplay.textContent=`${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}.${String(milliseconds).padStart(2,'0')}`;
+        }
+
+        startButton.addEventListener('click',()=>{
+            if(isDrillStarted)return;
+            if(drillQuestionsDiv.style.display==='none'||questions.length===0){generateQuestions()}
+            isDrillStarted=true;
+            
+            startButton.style.display='none';
+            checkButton.style.display='block';
+            resetButton.style.display='none'; 
+            resultsDiv.style.display='none';
+            
+            drillQuestionsDiv.style.display='block';
+            initialBestTimeDisplay.style.display='none'; 
+            
+            const oldMessage = resultsDiv.querySelector('#new-record-message');
+            if(oldMessage) oldMessage.remove();
+            
+            resetQuestionColors();
+
+            allInputs.forEach(input=>{
+                input.value='';input.classList.remove('correct','incorrect');input.disabled=false;input.style.border='2px solid #ccc';
+            });
+            document.querySelectorAll('.result-answer').forEach(span=>span.style.display='none');
+            document.querySelectorAll('.keypad').forEach(kp=>kp.style.display='none');
+            if(allInputs.length>0){allInputs[0].focus()}
+            startTime=Date.now();
+            timerInterval=setInterval(updateTimer,10);
+            newRecordIndex = -1; 
+        });
+
+        checkButton.addEventListener('click',()=>{
+            if(!isDrillStarted)return;
+            clearInterval(timerInterval);
+            isDrillStarted=false;
+            activeInput=null;
+            document.querySelectorAll('.keypad').forEach(kp=>kp.style.display='none');
+            
+            resetQuestionColors(); 
+            
+            const totalTime=Date.now()-startTime;
+            let correctCount=0;
+            
+            allInputs.forEach((input,index)=>{
+                const userAnswer=parseInt(toHalfWidth(input.value));
+                const correctAnswer=questions[index].answer;
+                const resultSpan=document.getElementById(`r${index}`);
+                input.disabled=true;input.classList.remove('correct','incorrect');resultSpan.style.display='block';
+                if(userAnswer===correctAnswer){
+                    correctCount++;input.classList.add('correct');resultSpan.textContent="⭕";resultSpan.style.color='#28a745';
+                }else{
+                    input.classList.add('incorrect');resultSpan.textContent=`❌ (正解: ${correctAnswer})`;resultSpan.style.color='#dc3545';
+                }
+            });
+
+            let isNewRecord=false;
+            newRecordIndex=-1; 
+            let currentBestTimes=loadBestTimes();
+
+            if(correctCount===10){
+                currentBestTimes.push(totalTime); 
+                currentBestTimes.sort((a,b)=>a-b); 
+                
+                const rank = currentBestTimes.indexOf(totalTime);
+                if(rank !== -1 && rank < 3) {
+                    isNewRecord = true;
+                    newRecordIndex = rank + 1; 
+                }
+
+                const newBestTimes=currentBestTimes.slice(0,3);
+                currentBestTimes = newBestTimes;
+                
+                localStorage.setItem(BEST_TIME_KEY,JSON.stringify(newBestTimes));
+            } 
+
+            const finalTimeString=formatTimeMsForDisplay(totalTime);
+            const accuracy=((correctCount/questions.length)*100).toFixed(1)+'%';
+            
+            document.getElementById('final-time').textContent=finalTimeString;
+            document.getElementById('correct-count').textContent=correctCount;
+            document.getElementById('accuracy').textContent=accuracy;
+
+            updateAllBestTimeDisplays(currentBestTimes);
+            
+            const oldMessage = resultsDiv.querySelector('#new-record-message');
+            if(oldMessage) oldMessage.remove();
+
+            if (isNewRecord) {
+                const message = document.createElement('p');
+                message.id = 'new-record-message';
+                message.innerHTML = `<span style="color:#dc3545; font-weight:bold;">🎉 ${newRecordIndex}い に しんきろく とうろく！ 🎉</span>`;
+                resultsDiv.insertBefore(message, resultBestTimeDisplay); 
+            }
+            
+            resultsDiv.style.display='block';
+            checkButton.style.display='none';
+            resetButton.style.display='block'; 
+            startButton.style.display='none';
+            
+            initialBestTimeDisplay.style.display='none';
+        });
+
+        resetButton.addEventListener('click',()=>{
+            drillQuestionsDiv.style.display='none';
+            resultsDiv.style.display='none';
+            
+            resetButton.style.display='none'; 
+            checkButton.style.display='none'; 
+            startButton.style.display='block'; 
+            
+            initialBestTimeDisplay.style.display='block';
+            
+            timeDisplay.textContent='00:00.00';isDrillStarted=false;questions=[];
+            
+            const oldMessage = resultsDiv.querySelector('#new-record-message');
+            if(oldMessage) oldMessage.remove();
+            
+            newRecordIndex = -1;
+            const initialBestTimes=loadBestTimes();
+            updateAllBestTimeDisplays(initialBestTimes);
+            
+            startButton.focus();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && startButton.style.display !== 'none' && !isDrillStarted) {
+                e.preventDefault();
+                startButton.click();
+            } else if (e.key === 'Enter' && checkButton.style.display !== 'none' && isDrillStarted) {
+                if (document.activeElement === checkButton) {
+                    e.preventDefault();
+                    checkButton.click();
+                }
+            }
+        });
+
+        window.onload=()=>{
+            generateQuestions();
+            startButton.focus();
+        };
+    </script>
+
+</body>
+</html>
