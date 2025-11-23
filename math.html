@@ -248,7 +248,14 @@
         function generateRandomQuestions(){
             const numQuestions=10;const newQuestions=[];const generatedSet=new Set();
             while(newQuestions.length<numQuestions){
-                const q1=getRandomInt(1,10);const q2=getRandomInt(1,10);
+                // q1 は 1 から 10
+                const q1=getRandomInt(1,10);
+                
+                // 答えが10以上になるための q2 の最小値を計算。
+                // q2 は (10 - q1) 以上、かつ 10 以下である必要がある。
+                const minQ2 = Math.max(1, 10 - q1);
+                const q2=getRandomInt(minQ2, 10);
+                
                 const problemKey=`${q1}+${q2}`;
                 if(!generatedSet.has(problemKey)){
                     generatedSet.add(problemKey);
@@ -344,8 +351,6 @@
                         moveToNextInput(this);
                     }
                 });
-                // keyup での全角変換処理は input イベントに移したので削除
-
             });
             
             document.querySelectorAll('.keypad').forEach(keypad=>{
